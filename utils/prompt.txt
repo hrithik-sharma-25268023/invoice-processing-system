@@ -1,0 +1,43 @@
+Extract all data from this invoice and return it as valid JSON.
+
+Use this exact structure:
+{
+  "invoice_number": "",
+  "invoice_date": "",
+  "due_date": "",
+  "vendor": {
+    "name": "",
+    "address": ""
+  },
+  "customer": {
+    "name": "",
+    "address": ""
+  },
+  "items": [
+    {
+      "id": "",
+      "description": "",
+      "quantity": "",
+      "unit_price": "",
+      "total": ""
+    }
+  ],
+  "subtotal": "",
+  "tax": "",
+  "shipping": "",
+  "total_amount": "",
+  "payment_details": {
+    "bank_name": "",
+    "iban": "",
+    "swift_code": ""
+  }
+}
+
+Important:
+- Extract ALL line items from the table
+- Keep all numbers as strings
+- Use empty string "" for missing fields
+- Return ONLY the JSON object, no other text
+
+Invoice:
+{invoice_text}

@@ -5,17 +5,15 @@ from pdf2image import convert_from_bytes
 import sys
 import os
 from io import BytesIO
-from datetime import datetime
 import boto3
 
 from src.storage import FileSystem
 from src.file_ocr import run_ocr
+from src.llm_utils import extract_invoice_with_llm
 
 
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, project_root)
-
-
 
 
 # Constants
@@ -45,6 +43,7 @@ if uploaded_file is not None:
     s3_key_pdf = f"app/input/{pdf_filename}"
     s3_key_image = f"app/interim/images/{base_name}.png"
     s3_key_text = f"app/interim/text/{base_name}.txt"
+    s3_json_key = f"app/output/{base_name}.json"
     
     # Read PDF bytes
     pdf_bytes = uploaded_file.read()
@@ -60,7 +59,7 @@ if uploaded_file is not None:
     # Convert PDF to image (single page)
     with st.spinner("Converting PDF to PNG..."):
         images = convert_from_bytes(pdf_bytes)
-        img = images[0]  # Only first page
+        img = images[0]
         
         # Convert PIL Image to bytes
         img_byte_arr = BytesIO()
@@ -84,10 +83,14 @@ if uploaded_file is not None:
 
     # RIGHT: Storage Info & Operations
     with col2:
-        pass
-        
+        st.subheader("📄 JSON Preview")
         text = run_ocr(FILE_SYSTEM, BUCKET_NAME, s3_key_image, s3_key_text)
-        st.markdown(text)
+        json_data = extract_invoice_with_llm(text)
+        st.json(json_data)
+
+        with st.spinner("Uploading JSON to S3..."):
+            FILE_SYSTEM.write_json(bucket=BUCKET_NAME, key=s3_json_key, data=json_data)
+    st.success("JSON uploaded to S3 successfully!")
         # st.subheader("💾 Storage Information")
         
         # # Upload details

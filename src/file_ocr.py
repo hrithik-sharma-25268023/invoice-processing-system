@@ -1,7 +1,6 @@
 """OCR Code"""
 
 from typing import Any
-import boto3
 import pytesseract
 from PIL import Image
 from io import BytesIO
