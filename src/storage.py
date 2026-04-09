@@ -64,6 +64,3 @@ class FileSystem:
         """Write bytes to S3 as PDF file"""
 
         self.s3_client.put_object(Bucket=bucket,Key=key, Body=pdf_bytes, ContentType='application/pdf')
-
-
-
