@@ -10,5 +10,6 @@ setup(
         "streamlit",
         "boto3",
         "pdf2image",
+        'pytesseract'
     ],
 )
