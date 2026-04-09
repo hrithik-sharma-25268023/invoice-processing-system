@@ -12,6 +12,7 @@ dependencies:
   - autopep8
   - pylint
   - tesseract
+  - boto3
   - ipykernel
   - psycopg2
   - numpy
