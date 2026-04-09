@@ -44,7 +44,7 @@ if uploaded_file is not None:
     # S3 paths
     s3_key_pdf = f"app/input/{pdf_filename}"
     s3_key_image = f"app/interim/images/{base_name}.png"
-    s3_key_text = f"app/interim/text{base_name}.txt"
+    s3_key_text = f"app/interim/text/{base_name}.txt"
     
     # Read PDF bytes
     pdf_bytes = uploaded_file.read()
