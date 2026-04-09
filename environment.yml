@@ -13,6 +13,7 @@ dependencies:
   - pylint
   - tesseract
   - ipykernel
+  - psycopg2
   - numpy
   - pandas
   - scikit-learn
@@ -21,8 +22,6 @@ dependencies:
   - opencv
   - pip:
       - tqdm
-      - pyarmor
-      - poppler
       - pillow
-      - psycopg2
       - pdf2image
+      - streamlit
