@@ -1,0 +1,28 @@
+name: invoice-processing-system
+
+channels:
+  - pytorch
+  - nvidia
+  - conda-forge
+  - defaults
+
+dependencies:
+  - python=3.10.6
+  - python-dotenv
+  - autopep8
+  - pylint
+  - tesseract
+  - ipykernel
+  - numpy
+  - pandas
+  - scikit-learn
+  - plotly
+  - pip
+  - opencv
+  - pip:
+      - tqdm
+      - pyarmor
+      - poppler
+      - pillow
+      - psycopg2
+      - pdf2image
