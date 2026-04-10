@@ -10,6 +10,7 @@ import boto3
 from src.storage import FileSystem
 from src.file_ocr import run_ocr
 from src.llm_utils import extract_invoice_with_llm
+from src.utilities import insert_invoice_into_db
 
 
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -90,6 +91,12 @@ if uploaded_file is not None:
         with st.spinner("Uploading JSON to S3..."):
             FILE_SYSTEM.write_json(bucket=BUCKET_NAME, key=s3_json_key, data=json_data)
     st.success("JSON uploaded to S3 successfully!")
+
+    # Saving JSON to Database into RDS (Relational Database Table)
+    with st.spinner("Saving to database..."):
+        insert_invoice_into_db(json_data=json_data, s3_uri=f"s3://{BUCKET_NAME}/"+s3_json_key)
+        st.success("Data saved to RDS successfully!")
+
         # st.subheader("💾 Storage Information")
         
         # # Upload details
