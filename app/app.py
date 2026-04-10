@@ -20,7 +20,6 @@ sys.path.insert(0, project_root)
 S3_CLIENT = boto3.client('s3')
 FILE_SYSTEM = FileSystem(s3_client=S3_CLIENT)
 BUCKET_NAME = 'document-processing-project'
-BEDROCK_CLIENT = boto3.client('bedrock')
 
 
 st.set_page_config(layout="wide")

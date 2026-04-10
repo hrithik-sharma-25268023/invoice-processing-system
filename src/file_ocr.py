@@ -17,10 +17,6 @@ def run_ocr(file_system: Any, bucket: str, image_key: str, text_key: str) -> str
 
         # Tesseract OCR
         extracted_text = pytesseract.image_to_string(img)
-        
-        # Logic for saving the output
-        relative_path = image_key.replace('interim/images/', '')
-        filename_txt = relative_path.replace('.png', '.txt')
 
         # Saving results
         file_system.write_text(bucket, text_key, extracted_text)
