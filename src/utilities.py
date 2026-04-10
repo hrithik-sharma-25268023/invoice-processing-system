@@ -6,6 +6,7 @@ from typing import Any, Dict
 from dotenv import load_dotenv
 from datetime import datetime
 import psycopg2
+import pandas as pd
 
 
 script_dir = Path(__file__).resolve().parent
@@ -51,13 +52,10 @@ def clean_date(value: Any) -> Any:
 
 
 def insert_invoice_into_db(json_data: Dict, s3_uri: str) -> None:
-    """Insert invoice + items into RDS"""
-
     conn = psycopg2.connect(**DB_CONFIG)
     cur = conn.cursor()
 
     try:
-        # Insert invoice
         cur.execute("""
         INSERT INTO invoices (
             invoice_number,
@@ -98,9 +96,19 @@ def insert_invoice_into_db(json_data: Dict, s3_uri: str) -> None:
             s3_uri
         ))
 
-        invoice_id = cur.fetchone()[0]
+        result = cur.fetchone()
 
-        # Insert items
+        if result:
+            invoice_id = result[0]
+        else:
+            cur.execute(
+                "SELECT id FROM invoices WHERE invoice_number = %s",
+                (json_data.get("invoice_number"),)
+            )
+            invoice_id = cur.fetchone()[0]
+
+        cur.execute("DELETE FROM invoice_items WHERE invoice_id = %s", (invoice_id,))
+
         for item in json_data.get("items", []):
             cur.execute("""
             INSERT INTO invoice_items (
@@ -109,16 +117,18 @@ def insert_invoice_into_db(json_data: Dict, s3_uri: str) -> None:
                 description,
                 quantity,
                 unit_price,
-                total
+                total,
+                s3_json_path
             )
-            VALUES (%s, %s, %s, %s, %s, %s)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
             """, (
                 invoice_id,
                 item.get("id"),
                 item.get("description"),
                 clean_amount(item.get("quantity")),
                 clean_amount(item.get("unit_price")),
-                clean_amount(item.get("total"))
+                clean_amount(item.get("total")),
+                s3_uri
             ))
 
         conn.commit()
@@ -129,4 +139,32 @@ def insert_invoice_into_db(json_data: Dict, s3_uri: str) -> None:
 
     finally:
         cur.close()
+        conn.close()
+
+
+def fetch_tables_from_db() -> tuple:
+
+    conn = psycopg2.connect(
+        host=os.environ.get('HOST'),
+        database="invoice-db",
+        user="postgres",
+        password=os.environ.get('PASSWORD'),
+        port=os.environ.get('PORT'),
+        sslmode="require"
+    )
+
+    try:
+        invoices_df = pd.read_sql(
+            "SELECT * FROM invoices ORDER BY created_at DESC",
+            conn
+        )
+
+        items_df = pd.read_sql(
+            "SELECT * FROM invoice_items ORDER BY created_at DESC",
+            conn
+        )
+
+        return invoices_df, items_df
+
+    finally:
         conn.close()

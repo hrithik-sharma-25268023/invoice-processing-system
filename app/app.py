@@ -10,7 +10,7 @@ import boto3
 from src.storage import FileSystem
 from src.file_ocr import run_ocr
 from src.llm_utils import extract_invoice_with_llm
-from src.utilities import insert_invoice_into_db
+from src.utilities import insert_invoice_into_db, fetch_tables_from_db
 
 
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -74,12 +74,10 @@ if uploaded_file is not None:
             image_bytes=img_bytes
         )
     
-    st.success("PDF and PNG uploaded to S3 successfully!")
-    
     # LEFT: PDF Preview
     with col1:
         st.subheader("📄 Invoice Preview")
-        st.image(img, use_column_width=True)
+        st.image(img, width="stretch")
 
     # RIGHT: Storage Info & Operations
     with col2:
@@ -90,12 +88,35 @@ if uploaded_file is not None:
 
         with st.spinner("Uploading JSON to S3..."):
             FILE_SYSTEM.write_json(bucket=BUCKET_NAME, key=s3_json_key, data=json_data)
-    st.success("JSON uploaded to S3 successfully!")
 
     # Saving JSON to Database into RDS (Relational Database Table)
     with st.spinner("Saving to database..."):
         insert_invoice_into_db(json_data=json_data, s3_uri=f"s3://{BUCKET_NAME}/"+s3_json_key)
-        st.success("Data saved to RDS successfully!")
+    
+    st.divider()
+    st.subheader("📊 View Stored Data")
+
+    if st.button("Load Data from RDS", use_container_width=True):
+
+        with st.spinner("Fetching data from database..."):
+            try:
+                invoices_df, items_df = fetch_tables_from_db()
+                invoices_df = invoices_df.drop(columns=["pdf_file_name"], errors="ignore")
+                items_df = items_df.drop(columns=["pdf_file_name"], errors="ignore")
+
+                st.markdown("### Invoices Table")
+                invoices_df = invoices_df[invoices_df['s3_json_path']==f"s3://{BUCKET_NAME}/" + s3_json_key]
+                st.dataframe(invoices_df, use_container_width=True)
+
+                st.markdown("### Invoice Items Table")
+                items_df = items_df[items_df['s3_json_path']==f"s3://{BUCKET_NAME}/" + s3_json_key]
+                st.dataframe(items_df, use_container_width=True)
+
+            except Exception as e:
+                st.error(f"Error fetching data: {e}")
+
+
+
 
         # st.subheader("💾 Storage Information")
         
