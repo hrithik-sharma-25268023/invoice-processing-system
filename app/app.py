@@ -6,11 +6,15 @@ import sys
 import os
 from io import BytesIO
 import boto3
+import uuid
+from datetime import datetime
+
 
 from src.storage import FileSystem
 from src.file_ocr import run_ocr
 from src.llm_utils import extract_invoice_with_llm
 from src.utilities import insert_invoice_into_db, fetch_tables_from_db
+from src.dynamo_utils import save_metadata_to_dynamodb
 
 
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -94,31 +98,92 @@ if uploaded_file is not None:
         insert_invoice_into_db(json_data=json_data, s3_uri=f"s3://{BUCKET_NAME}/"+s3_json_key)
     
     st.divider()
-    st.subheader("📊 View Stored Data")
-
-    if st.button("Load Data from RDS", use_container_width=True):
-
-        with st.spinner("Fetching data from database..."):
-            try:
-                invoices_df, items_df = fetch_tables_from_db()
-                invoices_df = invoices_df.drop(columns=["pdf_file_name"], errors="ignore")
-                items_df = items_df.drop(columns=["pdf_file_name"], errors="ignore")
-
-                st.markdown("### Invoices Table")
-                invoices_df = invoices_df[invoices_df['s3_json_path']==f"s3://{BUCKET_NAME}/" + s3_json_key]
-                st.dataframe(invoices_df, use_container_width=True)
-
-                st.markdown("### Invoice Items Table")
-                items_df = items_df[items_df['s3_json_path']==f"s3://{BUCKET_NAME}/" + s3_json_key]
-                st.dataframe(items_df, use_container_width=True)
-
-            except Exception as e:
-                st.error(f"Error fetching data: {e}")
+    st.subheader("📊 Displaying Stored Data")
 
 
+    with st.spinner("Fetching data from database..."):
+        try:
+            invoices_df, items_df = fetch_tables_from_db()
+            invoices_df = invoices_df.drop(columns=["pdf_file_name"], errors="ignore")
+            items_df = items_df.drop(columns=["pdf_file_name"], errors="ignore")
+
+            st.markdown("### Invoices Table")
+            invoices_df = invoices_df[invoices_df['s3_json_path']==f"s3://{BUCKET_NAME}/" + s3_json_key]
+            st.dataframe(invoices_df, use_container_width=True)
+
+            st.markdown("### Invoice Items Table")
+            items_df = items_df[items_df['s3_json_path']==f"s3://{BUCKET_NAME}/" + s3_json_key]
+            st.dataframe(items_df, use_container_width=True)
+
+        except Exception as e:
+            st.error(f"Error fetching data: {e}")
+
+    
+
+    metadata = {
+        "request_id": str(uuid.uuid4()),
+        "upload_timestamp": datetime.utcnow().isoformat(),
+
+        "file_info": {
+            "pdf_file_name": pdf_filename,
+            "file_type": "pdf",
+            "bucket_name": BUCKET_NAME
+        },
+
+        "s3_paths": {
+            "pdf_path": s3_key_pdf,
+            "image_path": s3_key_image,
+            "text_path": s3_key_text,
+            "json_path": s3_json_key
+        },
+
+        "file_sizes": {
+            "pdf_size_kb": round(len(pdf_bytes) / 1024, 2),
+            "image_size_kb": round(len(img_bytes) / 1024, 2)
+        },
+
+        "invoice_summary": {
+            "invoice_number": json_data.get("invoice_number"),
+            "invoice_date": json_data.get("invoice_date"),
+            "vendor_name": json_data.get("vendor", {}).get("name"),
+            "customer_name": json_data.get("customer", {}).get("name"),
+            "total_amount": json_data.get("total_amount"),
+            "num_items": len(json_data.get("items", []))
+        },
+
+        "processing_info": {
+            "ocr_status": "success",
+            "llm_status": "success",
+            "processing_status": "completed",
+            "source": "streamlit_app"
+        }
+    }
 
 
-        # st.subheader("💾 Storage Information")
+    with st.spinner("Saving metadata to DynamoDB..."):
+        metadata = save_metadata_to_dynamodb(
+            pdf_filename=pdf_filename,
+            bucket_name=BUCKET_NAME,
+            s3_key_pdf=s3_key_pdf,
+            s3_key_image=s3_key_image,
+            s3_key_text=s3_key_text,
+            s3_json_key=s3_json_key,
+            pdf_bytes=pdf_bytes,
+            img_bytes=img_bytes,
+            json_data=json_data
+        )
+
+    st.success("Metadata saved to DynamoDB!")
+    st.json(metadata)
+
+    # with st.spinner("Saving metadata to DynamoDB..."):
+    #     metadata = save_metadata_to_dynamodb(pdf_filename=pdf_filename, bucket_name=BUCKET_NAME, s3_key_pdf=s3_key_pdf, s3_key_image=s3_key_image,
+    #                                          s3_key_text=s3_key_text, s3_json_key=s3_json_key, pdf_bytes=pdf_bytes, img_bytes=img_bytes, json_data=json_data)
+
+    # st.success("Metadata saved to DynamoDB!")
+    # st.json(metadata)
+
+        # st.subheader("Storage Information")
         
         # # Upload details
         # with st.container():
